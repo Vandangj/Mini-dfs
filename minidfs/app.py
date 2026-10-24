@@ -213,9 +213,22 @@ class MiniDFSHTTPHandler(SimpleHTTPRequestHandler):
             elif path == "/api/matrix/last_result":
                 self._send_json(self.system.matrix_multiplier.get_status())
 
-            elif path == "/api/storage/disk":
-                disk_info = {nid: node.get_disk_usage() for nid, node in self.system.storage_nodes.items()}
-                self._send_json(disk_info)
+            elif path == "/api/file/raw":
+                file_path = query.get("path", [""])[0]
+                res = self.system.metadata_server.get_file_raw_bytes(file_path)
+                if res is None:
+                    self.send_error(404, "File not found")
+                    return
+                raw_bytes, content_type, filename = res
+                self.send_response(200)
+                self.send_header("Content-Type", content_type or "application/octet-stream")
+                self.send_header("Content-Length", str(len(raw_bytes)))
+                self.send_header("Content-Disposition", f'inline; filename="{filename}"')
+                self.send_header("Accept-Ranges", "bytes")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(raw_bytes)
+                return
 
             else:
                 self._send_json({"error": f"Endpoint GET {path} not found"}, 404)
@@ -303,10 +316,29 @@ class MiniDFSHTTPHandler(SimpleHTTPRequestHandler):
             elif path == "/api/mapreduce/run":
                 job_type = body.get("job_type", "WordCount")
                 custom_text = body.get("custom_text", None)
-                if job_type == "LogAnalysis":
+                if job_type == "AudioSpectrumAnalytics":
+                    file_path = body.get("file_path")
+                    raw_bytes = None
+                    if file_path:
+                        raw_tuple = self.system.metadata_server.get_file_raw_bytes(file_path)
+                        if raw_tuple:
+                            raw_bytes = raw_tuple[0]
+                    res = self.system.mapreduce_engine.run_audio_analytics(raw_bytes)
+                elif job_type == "LogAnalysis":
                     res = self.system.mapreduce_engine.run_log_analysis(custom_text)
                 else:
                     res = self.system.mapreduce_engine.run_word_count(custom_text)
+                self._send_json(res)
+
+            # Direct Upload Endpoint (Audio / Datasets / Files)
+            elif path == "/api/upload":
+                user = body.get("user", "alice")
+                filename = body.get("filename", "upload.dat")
+                target_path = body.get("path") or f"/user/{user}/{filename}"
+                content = body.get("content", "")
+                permissions = body.get("permissions", "rwxr-xr--")
+                content_type = body.get("content_type", None)
+                res = self.system.metadata_server.rpc_create_file(target_path, user, content, permissions, content_type)
                 self._send_json(res)
 
             # 8. Fault Tolerance & Heartbeat

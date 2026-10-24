@@ -359,14 +359,22 @@
                         <div class="card-body">
                             <div class="form-group">
                                 <label for="analytics-job-type">Analytics Algorithm:</label>
-                                <select id="analytics-job-type" class="form-control">
+                                <select id="analytics-job-type" class="form-control" onchange="MiniDFSApp.onAnalyticsJobTypeChange()">
+                                    <option value="AudioSpectrumAnalytics">Distributed Audio Spectrum & Signal Analytics (MapReduce over Audio Chunks)</option>
                                     <option value="WordCount">Distributed Word Frequency Counter (WordCount)</option>
                                     <option value="LogAnalysis">Distributed Security Log Severity Counter (INFO, WARN, ERROR, FATAL)</option>
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label for="analytics-custom-input">Distributed Input Dataset:</label>
-                                <textarea id="analytics-custom-input" class="form-control" rows="6">MiniDFS distributed cloud platform scales across multiple storage nodes with ring replication.
+                            <div class="form-group" id="analytics-audio-file-group">
+                                <label for="analytics-audio-file-select">Select Stored Audio File from Ring Storage:</label>
+                                <select id="analytics-audio-file-select" class="form-control">
+                                    <option value="/audio/welcome_chime.wav">/audio/welcome_chime.wav (Distributed across SN1, SN2, SN3)</option>
+                                </select>
+                                <small class="text-secondary mt-1" style="display:block;">Map tasks will compute peak amplitude, RMS energy, and sample frequency across SN1, SN2, SN3 local chunks.</small>
+                            </div>
+                            <div class="form-group" id="analytics-text-input-group" style="display:none;">
+                                <label for="analytics-custom-input">Distributed Input Text Dataset:</label>
+                                <textarea id="analytics-custom-input" class="form-control" rows="5">MiniDFS distributed cloud platform scales across multiple storage nodes with ring replication.
 MapReduce processes data partitions directly on Storage Node 1, Storage Node 2, and Storage Node 3.
 INFO: Data chunk A processed successfully on SN1.
 INFO: Secondary replica synchronization completed over replication network.
@@ -821,43 +829,88 @@ INFO: Reducer aggregated final key counts across partitions.</textarea>
 
     <!-- ==================== MODALS ==================== -->
 
-    <!-- Upload File Modal -->
+    <!-- Real File Upload Modal (Audio / Datasets / Files) -->
     <div class="modal-overlay" id="upload-modal">
         <div class="modal-card">
             <div class="modal-header">
-                <h3><i class="fa-solid fa-cloud-arrow-up text-accent"></i> Upload New File to Cloud Drive</h3>
+                <h3><i class="fa-solid fa-cloud-arrow-up text-accent"></i> Upload File to Distributed Cluster</h3>
                 <button class="btn-close" onclick="MiniDFSApp.closeUploadModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="form-group">
-                    <label for="modal-upload-path">File Path (Namespace Destination):</label>
-                    <input type="text" id="modal-upload-path" class="form-control" value="/user/alice/project_specs.txt">
+                <!-- Dropzone Area -->
+                <div class="upload-dropzone" id="upload-dropzone" onclick="document.getElementById('modal-real-file-picker').click()">
+                    <input type="file" id="modal-real-file-picker" style="display:none;" onchange="MiniDFSApp.onFilePicked(event)">
+                    <div class="dropzone-icon">
+                        <i class="fa-solid fa-file-audio"></i>
+                    </div>
+                    <h4>Click to browse or drop an Audio / Data file</h4>
+                    <p class="dropzone-hint">Supports <strong>.mp3, .wav, .ogg, .m4a, .flac</strong>, or text/data files</p>
+                </div>
+
+                <!-- Selected File Info Card -->
+                <div class="selected-file-card mt-3" id="selected-file-card" style="display:none;">
+                    <div class="file-card-header">
+                        <i class="fa-solid fa-music text-accent" id="selected-file-icon"></i>
+                        <div>
+                            <strong id="selected-file-name">audio_sample.mp3</strong>
+                            <small id="selected-file-size" style="display:block;">1.2 MB &bull; audio/mpeg</small>
+                        </div>
+                        <span class="tag btn-success" id="selected-file-type-badge">AUDIO STREAM</span>
+                    </div>
+                    <!-- Ring Chunk Partitioning Preview -->
+                    <div class="ring-chunk-preview mt-3">
+                        <span class="preview-title"><i class="fa-solid fa-circle-nodes"></i> Distributed Ring Chunk Plan:</span>
+                        <div class="chunk-plan-grid">
+                            <div class="chunk-plan-item">
+                                <small>CHUNK 1 (1/3)</small>
+                                <strong>&rarr; SN1</strong> <span class="rep-label">(Rep: SN3)</span>
+                            </div>
+                            <div class="chunk-plan-item">
+                                <small>CHUNK 2 (1/3)</small>
+                                <strong>&rarr; SN2</strong> <span class="rep-label">(Rep: SN1)</span>
+                            </div>
+                            <div class="chunk-plan-item">
+                                <small>CHUNK 3 (1/3)</small>
+                                <strong>&rarr; SN3</strong> <span class="rep-label">(Rep: SN2)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group mt-3">
+                    <label for="modal-upload-path">Target Namespace Destination Path:</label>
+                    <input type="text" id="modal-upload-path" class="form-control" value="/audio/my_audio.mp3">
                 </div>
                 <div class="form-row">
                     <div class="form-group col">
-                        <label for="modal-upload-user">Owner (User):</label>
+                        <label for="modal-upload-user">Owner (ACL User):</label>
                         <input type="text" id="modal-upload-user" class="form-control" value="alice">
                     </div>
                     <div class="form-group col">
-                        <label for="modal-upload-perms">ACL Permissions:</label>
+                        <label for="modal-upload-perms">Permissions:</label>
                         <input type="text" id="modal-upload-perms" class="form-control" value="rwxr-xr--">
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="modal-upload-content">File Content:</label>
-                    <textarea id="modal-upload-content" class="form-control" rows="4">MiniDFS distributed cloud platform deployed for high availability and resilient data storage.</textarea>
-                </div>
+
+                <!-- Optional manual text input fallback -->
+                <details class="manual-input-details mt-2">
+                    <summary><i class="fa-solid fa-pen-to-square"></i> Or write custom text directly instead of file</summary>
+                    <div class="form-group mt-2">
+                        <textarea id="modal-upload-content" class="form-control" rows="3" placeholder="Enter custom text content here..."></textarea>
+                    </div>
+                </details>
+
                 <div class="modal-actions">
                     <button class="btn btn-secondary" onclick="MiniDFSApp.closeUploadModal()">Cancel</button>
-                    <button class="btn btn-primary" onclick="MiniDFSApp.submitFileUpload()">
-                        <i class="fa-solid fa-upload"></i> Commit to Cluster
+                    <button class="btn btn-primary" id="btn-submit-upload" onclick="MiniDFSApp.submitFileUpload()">
+                        <i class="fa-solid fa-upload"></i> Upload & Partition Across Nodes
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- File Preview Modal -->
+    <!-- File Preview & Audio Player Modal -->
     <div class="modal-overlay" id="preview-modal">
         <div class="modal-card">
             <div class="modal-header">
@@ -866,7 +919,18 @@ INFO: Reducer aggregated final key counts across partitions.</textarea>
             </div>
             <div class="modal-body">
                 <div class="file-meta-bar" id="preview-meta-bar"></div>
-                <pre class="code-block mt-3" id="preview-modal-content" style="max-height: 300px;"></pre>
+
+                <!-- Audio Player Widget -->
+                <div id="preview-audio-player-container" class="audio-player-container mt-3" style="display:none;">
+                    <div class="audio-wave-header">
+                        <i class="fa-solid fa-waveform-lines text-accent"></i>
+                        <span>Reassembled Audio Stream (Decoded from Ring Chunks)</span>
+                    </div>
+                    <audio id="preview-html5-audio" controls style="width: 100%; margin-top: 10px;"></audio>
+                </div>
+
+                <pre class="code-block mt-3" id="preview-modal-content" style="max-height: 280px;"></pre>
+
                 <div class="modal-actions">
                     <button class="btn btn-secondary" onclick="MiniDFSApp.closePreviewModal()">Close</button>
                 </div>

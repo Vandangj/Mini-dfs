@@ -1,7 +1,7 @@
 /**
  * MiniDFS Cloud - Enterprise Distributed Storage & Analytics Mesh
- * Powers Cloud Drive, Analytics Studio (MapReduce), HPC Acceleration (MPI),
- * Node Mesh Management, and Audit Synchronization.
+ * Powers Cloud Drive, Audio File Upload & Playback, Analytics Studio (MapReduce),
+ * HPC Acceleration (MPI), Node Mesh Management, and Audit Synchronization.
  */
 
 const MiniDFSApp = {
@@ -10,9 +10,10 @@ const MiniDFSApp = {
     systemState: null,
     currentUser: 'alice',
     allFiles: {},
+    pickedFileData: null,
 
     init() {
-        console.log("Starting MiniDFS Cloud Platform...");
+        console.log("Starting MiniDFS Cloud Platform with Audio & Binary Streaming...");
         this.bindEvents();
         this.fetchSystemOverview();
 
@@ -37,6 +38,34 @@ const MiniDFSApp = {
             refreshBtn.addEventListener('click', () => {
                 this.fetchSystemOverview();
             });
+        }
+
+        // Setup Drag & Drop for File Dropzone
+        const dropzone = document.getElementById('upload-dropzone');
+        if (dropzone) {
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.add('dragover');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.remove('dragover');
+                }, false);
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files && files.length > 0) {
+                    this.processSelectedFile(files[0]);
+                }
+            }, false);
         }
     },
 
@@ -183,6 +212,8 @@ const MiniDFSApp = {
 
         if (this.activeTab === 'tab-drive') {
             this.renderDriveView(data);
+        } else if (this.activeTab === 'tab-analytics') {
+            this.updateAnalyticsAudioDropdown();
         } else if (this.activeTab === 'tab-mesh') {
             this.renderMeshView(data);
         } else if (this.activeTab === 'tab-audit') {
@@ -209,30 +240,50 @@ const MiniDFSApp = {
         for (const [path, meta] of Object.entries(files)) {
             if (query && !path.toLowerCase().includes(query)) continue;
 
+            const isAudio = meta.is_audio || path.toLowerCase().endsWith('.wav') || path.toLowerCase().endsWith('.mp3') || path.toLowerCase().endsWith('.ogg') || path.toLowerCase().endsWith('.m4a');
+            
             const chunksStr = (meta.chunks || []).map(cid => {
-                const loc = this.systemState?.ring_topology?.nodes;
                 return `<span class="tag btn-secondary">${cid}</span>`;
             }).join(' ');
+
+            const formatBadge = isAudio 
+                ? `<span class="audio-badge"><i class="fa-solid fa-file-audio"></i> AUDIO</span>` 
+                : `<span class="tag btn-secondary">${meta.content_type || 'text'}</span>`;
+
+            const iconClass = isAudio ? 'fa-solid fa-music text-accent' : 'fa-solid fa-file-lines text-secondary';
+
+            const sizeDisplay = meta.size_bytes > (1024 * 1024) 
+                ? (meta.size_bytes / (1024 * 1024)).toFixed(2) + ' MB'
+                : (meta.size_bytes / 1024).toFixed(1) + ' KB';
 
             html += `
                 <tr>
                     <td>
                         <div style="display:flex; align-items:center; gap:10px;">
-                            <i class="fa-solid fa-file-code text-accent" style="font-size:16px;"></i>
-                            <strong>${meta.path}</strong>
+                            <i class="${iconClass}" style="font-size:16px;"></i>
+                            <div>
+                                <strong>${meta.path}</strong>
+                                <div style="margin-top:2px;">${formatBadge}</div>
+                            </div>
                         </div>
                     </td>
                     <td><span class="badge-accent">${meta.owner}</span></td>
                     <td><code>${meta.permissions}</code></td>
-                    <td>${meta.size_bytes} B</td>
+                    <td>${sizeDisplay}</td>
                     <td>v${meta.version}</td>
                     <td>${chunksStr}</td>
                     <td>
                         <div style="display:flex; gap:6px;">
-                            <button class="btn btn-sm btn-secondary" title="Preview File" onclick="MiniDFSApp.previewFile('${meta.path}')">
-                                <i class="fa-solid fa-eye"></i>
-                            </button>
-                            <button class="btn btn-sm btn-secondary" title="Download" onclick="MiniDFSApp.downloadFile('${meta.path}')">
+                            ${isAudio ? `
+                                <button class="btn btn-sm btn-primary" title="Play Stream" onclick="MiniDFSApp.playAudio('${meta.path}')">
+                                    <i class="fa-solid fa-play"></i> Play
+                                </button>
+                            ` : `
+                                <button class="btn btn-sm btn-secondary" title="Preview File" onclick="MiniDFSApp.previewFile('${meta.path}')">
+                                    <i class="fa-solid fa-eye"></i> View
+                                </button>
+                            `}
+                            <button class="btn btn-sm btn-secondary" title="Download Direct" onclick="MiniDFSApp.downloadFile('${meta.path}')">
                                 <i class="fa-solid fa-download"></i>
                             </button>
                             <button class="btn btn-sm btn-danger" title="Delete" onclick="MiniDFSApp.deleteFile('${meta.path}')">
@@ -251,7 +302,100 @@ const MiniDFSApp = {
         this.currentUser = document.getElementById('drive-current-user').value;
     },
 
+    onFilePicked(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        this.processSelectedFile(file);
+    },
+
+    processSelectedFile(file) {
+        const reader = new FileReader();
+        const isAudio = file.type.startsWith('audio/') || file.name.toLowerCase().endsWith('.mp3') || file.name.toLowerCase().endsWith('.wav') || file.name.toLowerCase().endsWith('.ogg') || file.name.toLowerCase().endsWith('.m4a');
+
+        reader.onload = (e) => {
+            this.pickedFileData = {
+                name: file.name,
+                size: file.size,
+                type: file.type || (isAudio ? 'audio/mpeg' : 'text/plain'),
+                dataUrl: e.target.result,
+                isAudio: isAudio
+            };
+            this.renderSelectedFileInfo();
+        };
+
+        reader.readAsDataURL(file);
+    },
+
+    renderSelectedFileInfo() {
+        const info = this.pickedFileData;
+        if (!info) return;
+
+        const card = document.getElementById('selected-file-card');
+        if (card) card.style.display = 'block';
+
+        const nameElem = document.getElementById('selected-file-name');
+        if (nameElem) nameElem.textContent = info.name;
+
+        const sizeStr = info.size > (1024 * 1024) 
+            ? (info.size / (1024 * 1024)).toFixed(2) + ' MB'
+            : (info.size / 1024).toFixed(1) + ' KB';
+
+        const sizeElem = document.getElementById('selected-file-size');
+        if (sizeElem) sizeElem.textContent = `${sizeStr} • ${info.type}`;
+
+        const badge = document.getElementById('selected-file-type-badge');
+        if (badge) {
+            badge.textContent = info.isAudio ? 'AUDIO STREAM' : 'DATA FILE';
+            badge.className = info.isAudio ? 'tag btn-accent' : 'tag btn-success';
+        }
+
+        const icon = document.getElementById('selected-file-icon');
+        if (icon) {
+            icon.className = info.isAudio ? 'fa-solid fa-music text-accent' : 'fa-solid fa-file-lines text-accent';
+        }
+
+        // Auto-populate target path
+        const pathInput = document.getElementById('modal-upload-path');
+        if (pathInput) {
+            const folder = info.isAudio ? '/audio' : `/user/${this.currentUser}`;
+            pathInput.value = `${folder}/${info.name}`;
+        }
+    },
+
+    async playAudio(path) {
+        const audioContainer = document.getElementById('preview-audio-player-container');
+        const audioElem = document.getElementById('preview-html5-audio');
+        const previewTitle = document.getElementById('preview-modal-title');
+        const metaBar = document.getElementById('preview-meta-bar');
+        const codeBlock = document.getElementById('preview-modal-content');
+
+        if (previewTitle) previewTitle.innerHTML = `<i class="fa-solid fa-music text-accent"></i> Streaming Audio: ${path}`;
+        if (metaBar) {
+            metaBar.innerHTML = `
+                <div class="metric-row">
+                    <span>Reassembled from: <strong>SN1, SN2, SN3 (Ring Chunks)</strong></span>
+                    <span>Status: <strong class="text-success">Synchronized Stream</strong></span>
+                </div>
+            `;
+        }
+
+        if (audioContainer) audioContainer.style.display = 'block';
+        if (codeBlock) codeBlock.style.display = 'none';
+
+        if (audioElem) {
+            audioElem.src = `/api/file/raw?path=${encodeURIComponent(path)}`;
+            audioElem.play().catch(e => console.log("Autoplay blocked by browser policy:", e));
+        }
+
+        document.getElementById('preview-modal').classList.add('active');
+    },
+
     async previewFile(path) {
+        const audioContainer = document.getElementById('preview-audio-player-container');
+        const codeBlock = document.getElementById('preview-modal-content');
+        if (audioContainer) audioContainer.style.display = 'none';
+        if (codeBlock) codeBlock.style.display = 'block';
+
         try {
             const resp = await fetch('/api/rpc', {
                 method: 'POST',
@@ -266,7 +410,7 @@ const MiniDFSApp = {
             const res = await resp.json();
             const result = res.result || {};
 
-            document.getElementById('preview-modal-title').innerHTML = `<i class="fa-solid fa-file-lines text-accent"></i> Preview: ${path}`;
+            document.getElementById('preview-modal-title').innerHTML = `<i class="fa-solid fa-file-lines text-accent"></i> File Preview: ${path}`;
             document.getElementById('preview-meta-bar').innerHTML = `
                 <div class="metric-row">
                     <span>Owner: <strong>${result.metadata?.owner || 'alice'}</strong></span>
@@ -274,7 +418,7 @@ const MiniDFSApp = {
                     <span>Version: <strong>v${result.metadata?.version || 1}</strong></span>
                 </div>
             `;
-            document.getElementById('preview-modal-content').textContent = result.content || result.error || 'Empty file';
+            codeBlock.textContent = result.content || result.error || 'Empty file';
             document.getElementById('preview-modal').classList.add('active');
         } catch (err) {
             alert(`Error reading file: ${err.message}`);
@@ -282,35 +426,17 @@ const MiniDFSApp = {
     },
 
     closePreviewModal() {
+        const audioElem = document.getElementById('preview-html5-audio');
+        if (audioElem) {
+            audioElem.pause();
+            audioElem.src = '';
+        }
         document.getElementById('preview-modal').classList.remove('active');
     },
 
-    async downloadFile(path) {
-        try {
-            const resp = await fetch('/api/rpc', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    jsonrpc: "2.0",
-                    method: "read_file",
-                    params: { path: path, user: this.currentUser },
-                    id: Date.now()
-                })
-            });
-            const res = await resp.json();
-            const content = res.result?.content || '';
-
-            const filename = path.split('/').pop() || 'download.txt';
-            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            a.click();
-            URL.revokeObjectURL(url);
-        } catch (err) {
-            alert(`Download failed: ${err.message}`);
-        }
+    downloadFile(path) {
+        // Direct stream download from cluster
+        window.location.href = `/api/file/raw?path=${encodeURIComponent(path)}`;
     },
 
     async deleteFile(path) {
@@ -337,44 +463,104 @@ const MiniDFSApp = {
     },
 
     closeUploadModal() {
+        this.pickedFileData = null;
+        const card = document.getElementById('selected-file-card');
+        if (card) card.style.display = 'none';
+        const filePicker = document.getElementById('modal-real-file-picker');
+        if (filePicker) filePicker.value = '';
         document.getElementById('upload-modal').classList.remove('active');
     },
 
     async submitFileUpload() {
+        const btn = document.getElementById('btn-submit-upload');
+        if (btn) btn.disabled = true;
+
         const path = document.getElementById('modal-upload-path').value;
         const user = document.getElementById('modal-upload-user').value;
         const perms = document.getElementById('modal-upload-perms').value;
-        const content = document.getElementById('modal-upload-content').value;
+
+        let content = '';
+        let contentType = 'text/plain';
+
+        if (this.pickedFileData) {
+            // Upload the real picked file (audio or document)
+            content = this.pickedFileData.dataUrl;
+            contentType = this.pickedFileData.type;
+        } else {
+            // Fallback manual text
+            content = document.getElementById('modal-upload-content').value || "Distributed sample payload";
+        }
 
         try {
-            const resp = await fetch('/api/rpc', {
+            const resp = await fetch('/api/upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    jsonrpc: "2.0",
-                    method: "create_file",
-                    params: { path: path, user: user, content: content, permissions: perms },
-                    id: Date.now()
+                    path: path,
+                    user: user,
+                    permissions: perms,
+                    content: content,
+                    content_type: contentType,
+                    filename: path.split('/').pop()
                 })
             });
             const res = await resp.json();
             this.closeUploadModal();
             this.fetchSystemOverview();
             this.switchTab('tab-drive');
+            alert(`File '${path}' successfully chunked and distributed across SN1, SN2, and SN3 in the ring!`);
         } catch (err) {
             alert(`Upload failed: ${err.message}`);
+        } finally {
+            if (btn) btn.disabled = false;
         }
     },
 
     // ==================== 2. ANALYTICS STUDIO ====================
+    onAnalyticsJobTypeChange() {
+        const jobType = document.getElementById('analytics-job-type').value;
+        const audioGroup = document.getElementById('analytics-audio-file-group');
+        const textGroup = document.getElementById('analytics-text-input-group');
+
+        if (jobType === 'AudioSpectrumAnalytics') {
+            if (audioGroup) audioGroup.style.display = 'block';
+            if (textGroup) textGroup.style.display = 'none';
+        } else {
+            if (audioGroup) audioGroup.style.display = 'none';
+            if (textGroup) textGroup.style.display = 'block';
+        }
+    },
+
+    updateAnalyticsAudioDropdown() {
+        const select = document.getElementById('analytics-audio-file-select');
+        if (!select) return;
+
+        const audioFiles = Object.keys(this.allFiles).filter(p => {
+            const meta = this.allFiles[p];
+            return meta.is_audio || p.endsWith('.wav') || p.endsWith('.mp3') || p.endsWith('.ogg');
+        });
+
+        if (audioFiles.length > 0) {
+            select.innerHTML = audioFiles.map(af => `<option value="${af}">${af} (Distributed Chunks)</option>`).join('');
+        }
+    },
+
     async runAnalyticsJob() {
         const jobType = document.getElementById('analytics-job-type').value;
         const customText = document.getElementById('analytics-custom-input').value;
+        const selectedAudio = document.getElementById('analytics-audio-file-select')?.value;
+
+        const body = { job_type: jobType };
+        if (jobType === 'AudioSpectrumAnalytics') {
+            body.file_path = selectedAudio;
+        } else {
+            body.custom_text = customText;
+        }
 
         const resp = await fetch('/api/mapreduce/run', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ job_type: jobType, custom_text: customText })
+            body: JSON.stringify(body)
         });
         const res = await resp.json();
 
@@ -420,7 +606,6 @@ const MiniDFSApp = {
     // ==================== 4. STORAGE NODE MESH ====================
     renderMeshView(data) {
         const nodes = data.fault_tolerance?.nodes || {};
-        const lb = data.load_balancer?.nodes || {};
 
         ['SN1', 'SN2', 'SN3'].forEach(nid => {
             const nInfo = nodes[nid] || {};

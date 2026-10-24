@@ -1071,3 +1071,152 @@ body {
 .text-muted { color: var(--text-muted); }
 .tag { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; display: inline-block; }
 .divider { border: 0; border-top: 1px solid var(--border-color); margin: 18px 0; }
+
+/* Real File Upload Dropzone */
+.upload-dropzone {
+    border: 2px dashed rgba(56, 189, 248, 0.4);
+    background: rgba(56, 189, 248, 0.04);
+    border-radius: var(--radius-md);
+    padding: 30px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.upload-dropzone:hover, .upload-dropzone.dragover {
+    border-color: var(--accent-blue);
+    background: rgba(56, 189, 248, 0.1);
+    box-shadow: var(--shadow-glow-blue);
+    transform: translateY(-2px);
+}
+
+.dropzone-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(56, 189, 248, 0.15);
+    color: var(--accent-blue);
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 12px;
+}
+
+.upload-dropzone h4 {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.dropzone-hint {
+    font-size: 12.5px;
+    color: var(--text-muted);
+}
+
+/* Selected File Card */
+.selected-file-card {
+    background: rgba(14, 20, 32, 0.95);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+}
+
+.file-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.file-card-header i {
+    font-size: 24px;
+}
+
+.file-card-header span.tag {
+    margin-left: auto;
+}
+
+.ring-chunk-preview {
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+}
+
+.preview-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    display: block;
+    margin-bottom: 8px;
+}
+
+.chunk-plan-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.chunk-plan-item {
+    background: rgba(10, 14, 23, 0.8);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px;
+    text-align: center;
+}
+
+.chunk-plan-item small {
+    display: block;
+    font-size: 10px;
+    color: var(--accent-blue);
+    font-weight: 700;
+}
+
+.chunk-plan-item strong {
+    font-size: 12.5px;
+}
+
+.chunk-plan-item .rep-label {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.manual-input-details {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.manual-input-details summary {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+/* Audio Player Box */
+.audio-player-container {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(168, 85, 247, 0.1));
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: var(--radius-md);
+    padding: 18px;
+}
+
+.audio-wave-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.audio-badge {
+    background: rgba(168, 85, 247, 0.15);
+    color: var(--accent-purple);
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}

@@ -1,15 +1,13 @@
 """
 Storage Node Implementation (Storage Node 1, 2, 3)
-Persists chunks to local directories and exchanges replica chunks over
-the Replication Network via TCP socket transfers.
+Persists chunks (audio binary, datasets, text) to local directories
+and exchanges replica chunks over the Replication Network.
 """
 
 import os
 import threading
 import time
-import socket
-import json
-from typing import Dict, Any
+from typing import Dict, Any, Union
 from minidfs.config import DATA_DIR, STORAGE_NODES_CONFIG
 
 class LocalStorageNode:
@@ -31,26 +29,30 @@ class LocalStorageNode:
         replica_file = os.path.join(self.storage_dir, f"{self.replica_chunk_id}.dat")
 
         if not os.path.exists(primary_file):
-            with open(primary_file, "w", encoding="utf-8") as f:
-                f.write(f"Primary data block for {self.primary_chunk_id} stored on {self.node_id}.\nInitialized at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            with open(primary_file, "wb") as f:
+                f.write(f"Primary audio/data block for {self.primary_chunk_id} stored on {self.node_id}.\nInitialized at {time.strftime('%Y-%m-%d %H:%M:%S')}".encode('utf-8'))
 
         if not os.path.exists(replica_file):
-            with open(replica_file, "w", encoding="utf-8") as f:
-                f.write(f"Replica data block for {self.replica_chunk_id} backed up on {self.node_id}.\nSynchronized over Replication Network.")
+            with open(replica_file, "wb") as f:
+                f.write(f"Replica audio/data block for {self.replica_chunk_id} backed up on {self.node_id}.\nSynchronized over Replication Network.".encode('utf-8'))
 
-    def write_local_chunk(self, chunk_id: str, content: str, is_primary: bool = True):
+    def write_local_chunk(self, chunk_id: str, content: Union[str, bytes], is_primary: bool = True):
         with self._lock:
-            filepath = os.path.join(self.storage_dir, f"{chunk_id}.dat")
-            with open(filepath, "w", encoding="utf-8") as f:
-                f.write(content)
+            # Clean filename
+            safe_cid = chunk_id.replace("/", "_").replace("\\", "_")
+            filepath = os.path.join(self.storage_dir, f"{safe_cid}.dat")
+            raw_bytes = content.encode('utf-8') if isinstance(content, str) else content
+            with open(filepath, "wb") as f:
+                f.write(raw_bytes)
 
-    def read_local_chunk(self, chunk_id: str) -> str:
+    def read_local_chunk(self, chunk_id: str) -> bytes:
         with self._lock:
-            filepath = os.path.join(self.storage_dir, f"{chunk_id}.dat")
+            safe_cid = chunk_id.replace("/", "_").replace("\\", "_")
+            filepath = os.path.join(self.storage_dir, f"{safe_cid}.dat")
             if os.path.exists(filepath):
-                with open(filepath, "r", encoding="utf-8") as f:
+                with open(filepath, "rb") as f:
                     return f.read()
-            return ""
+            return b""
 
     def get_disk_usage(self) -> Dict[str, Any]:
         with self._lock:
