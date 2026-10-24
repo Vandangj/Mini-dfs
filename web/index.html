@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniDFS Cloud | Enterprise Distributed Storage & Analytics Mesh</title>
+    <meta name="description" content="MiniDFS Cloud: High-availability enterprise distributed object storage, analytics studio, and distributed computing mesh.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="dark-theme">
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-cloud-bolt"></i>
+                </div>
+                <div class="brand-text">
+                    <h2>MiniDFS <span class="brand-cloud">Cloud</span></h2>
+                    <span class="badge-cluster">Cluster: us-west-spit</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <div class="nav-category">PLATFORM</div>
+                <button class="nav-btn active" data-tab="tab-overview" id="nav-btn-overview">
+                    <i class="fa-solid fa-gauge-high"></i>
+                    <span>Cluster Overview</span>
+                </button>
+                <button class="nav-btn" data-tab="tab-drive" id="nav-btn-drive">
+                    <i class="fa-solid fa-folder-open"></i>
+                    <span>Cloud Drive (Files)</span>
+                    <span class="nav-badge" id="nav-files-count">3</span>
+                </button>
+
+                <div class="nav-category">DISTRIBUTED COMPUTE</div>
+                <button class="nav-btn" data-tab="tab-analytics" id="nav-btn-analytics">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Analytics Studio</span>
+                </button>
+                <button class="nav-btn" data-tab="tab-hpc" id="nav-btn-hpc">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span>HPC Acceleration</span>
+                </button>
+
+                <div class="nav-category">OPERATIONS & MESH</div>
+                <button class="nav-btn" data-tab="tab-mesh" id="nav-btn-mesh">
+                    <i class="fa-solid fa-circle-nodes"></i>
+                    <span>Storage Node Mesh</span>
+                    <span class="status-dot green" id="mesh-status-dot"></span>
+                </button>
+                <button class="nav-btn" data-tab="tab-audit" id="nav-btn-audit">
+                    <i class="fa-solid fa-timeline"></i>
+                    <span>Audit & Synchronization</span>
+                </button>
+                <button class="nav-btn" data-tab="tab-settings" id="nav-btn-settings">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Consensus Settings</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button class="btn-inspect-concepts" onclick="MiniDFSApp.openConceptsModal()">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                    <span>Concepts & Architecture</span>
+                </button>
+                <div class="cluster-status-pill mt-3">
+                    <div class="pulse-dot green"></div>
+                    <div>
+                        <div class="status-label">Ring Replicas: Healthy</div>
+                        <small id="sidebar-clock-ts">Logical Clock: #1</small>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Header Bar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <div class="breadcrumb">
+                        <span class="org-name"><i class="fa-solid fa-building-columns"></i> SPIT Mumbai</span>
+                        <span class="sep">/</span>
+                        <span class="current-view" id="current-view-title">Cluster Overview</span>
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <div class="cluster-telemetry-pills">
+                        <div class="stat-pill">
+                            <i class="fa-solid fa-hard-drive"></i>
+                            <span>Nodes: <strong id="header-nodes-alive">3 / 3 Online</strong></span>
+                        </div>
+                        <div class="stat-pill">
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <span>Consensus: <strong id="header-consistency-mode">Quorum (W=2)</strong></span>
+                        </div>
+                        <div class="stat-pill">
+                            <i class="fa-solid fa-clock"></i>
+                            <span>Sync Offset: <strong id="header-sync-offset">0.0 ms</strong></span>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="MiniDFSApp.openUploadModal()">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Upload File
+                    </button>
+                    <button class="btn-refresh" id="btn-manual-refresh" title="Refresh Live State">
+                        <i class="fa-solid fa-rotate"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- ==================== TAB 1: CLUSTER OVERVIEW ==================== -->
+            <section class="tab-pane active" id="tab-overview">
+                <!-- Cluster Hero -->
+                <div class="saas-hero">
+                    <div class="hero-left">
+                        <span class="badge-env"><i class="fa-solid fa-circle-check"></i> PRODUCTION CLUSTER ONLINE</span>
+                        <h1>MiniDFS High-Availability Storage Mesh</h1>
+                        <p>Self-healing, single-master distributed file system with peer-to-peer ring replication across Storage Nodes 1, 2, and 3. Monitored with automated replica promotion, load-aware data placement, and integrated MapReduce analytics.</p>
+                        <div class="hero-actions">
+                            <button class="btn btn-primary" onclick="MiniDFSApp.switchTab('tab-drive')">
+                                <i class="fa-solid fa-folder-tree"></i> Browse Cloud Drive
+                            </button>
+                            <button class="btn btn-secondary" onclick="MiniDFSApp.switchTab('tab-mesh')">
+                                <i class="fa-solid fa-network-wired"></i> Manage Node Mesh
+                            </button>
+                            <button class="btn btn-outline" onclick="MiniDFSApp.openConceptsModal()">
+                                <i class="fa-solid fa-circle-info"></i> How the 10 Distributed Concepts Work
+                            </button>
+                        </div>
+                    </div>
+                    <div class="hero-metrics">
+                        <div class="quick-metric">
+                            <span class="metric-title">TOTAL CLUSTER CAPACITY</span>
+                            <div class="metric-value">30.0 MB</div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill" style="width: 14%;"></div>
+                            </div>
+                            <small id="hero-storage-used">Allocated: 154 KB across 3 nodes</small>
+                        </div>
+                        <div class="quick-metric">
+                            <span class="metric-title">REPLICATION TOPOLOGY</span>
+                            <div class="metric-value text-accent">Ring (N=2)</div>
+                            <small>Fault tolerance: 1 Node Outage Allowed</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Node Mesh Preview Cards -->
+                <div class="section-title">
+                    <i class="fa-solid fa-server"></i>
+                    <h3>Active Infrastructure Nodes</h3>
+                </div>
+                <div class="mesh-cards-grid">
+                    <!-- Central Master -->
+                    <div class="mesh-card master">
+                        <div class="mesh-header">
+                            <span class="role-badge master-badge">COORDINATOR</span>
+                            <span class="node-live-dot green">Active</span>
+                        </div>
+                        <div class="mesh-icon"><i class="fa-solid fa-sitemap"></i></div>
+                        <h4>Metadata Server</h4>
+                        <div class="mesh-specs">
+                            <div><span>Namespace:</span> <strong id="overview-files-count">3 Files</strong></div>
+                            <div><span>Concurrency Lock:</span> <strong id="overview-rwlock-stat">RWLock (Idle)</strong></div>
+                            <div><span>Logical Clock:</span> <strong id="overview-lamport-ts">#1</strong></div>
+                        </div>
+                    </div>
+
+                    <!-- Storage Node 1 -->
+                    <div class="mesh-card storage" id="overview-sn1-card">
+                        <div class="mesh-header">
+                            <span class="role-badge sn1-badge">STORAGE NODE 1</span>
+                            <span class="node-live-dot green" id="sn1-overview-dot">Healthy</span>
+                        </div>
+                        <div class="mesh-chunk-holdings">
+                            <div class="chunk-pill primary">Primary: <strong>Chunk A</strong></div>
+                            <div class="chunk-pill replica">Replica: <strong>Chunk B</strong></div>
+                        </div>
+                        <div class="mesh-specs">
+                            <div><span>Load Score:</span> <strong id="sn1-overview-load">12.5</strong></div>
+                            <div><span>Heartbeat:</span> <strong id="sn1-overview-hb">1.1s ago</strong></div>
+                        </div>
+                    </div>
+
+                    <!-- Storage Node 2 -->
+                    <div class="mesh-card storage" id="overview-sn2-card">
+                        <div class="mesh-header">
+                            <span class="role-badge sn2-badge">STORAGE NODE 2</span>
+                            <span class="node-live-dot green" id="sn2-overview-dot">Healthy</span>
+                        </div>
+                        <div class="mesh-chunk-holdings">
+                            <div class="chunk-pill primary">Primary: <strong>Chunk B</strong></div>
+                            <div class="chunk-pill replica">Replica: <strong>Chunk C</strong></div>
+                        </div>
+                        <div class="mesh-specs">
+                            <div><span>Load Score:</span> <strong id="sn2-overview-load">14.0</strong></div>
+                            <div><span>Heartbeat:</span> <strong id="sn2-overview-hb">0.9s ago</strong></div>
+                        </div>
+                    </div>
+
+                    <!-- Storage Node 3 -->
+                    <div class="mesh-card storage" id="overview-sn3-card">
+                        <div class="mesh-header">
+                            <span class="role-badge sn3-badge">STORAGE NODE 3</span>
+                            <span class="node-live-dot green" id="sn3-overview-dot">Healthy</span>
+                        </div>
+                        <div class="mesh-chunk-holdings">
+                            <div class="chunk-pill primary">Primary: <strong>Chunk C</strong></div>
+                            <div class="chunk-pill replica">Replica: <strong>Chunk A</strong></div>
+                        </div>
+                        <div class="mesh-specs">
+                            <div><span>Load Score:</span> <strong id="sn3-overview-load">11.8</strong></div>
+                            <div><span>Heartbeat:</span> <strong id="sn3-overview-hb">1.2s ago</strong></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity & Performance -->
+                <div class="two-col-grid mt-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fa-solid fa-clock-rotate-left"></i>
+                                <h3>Recent Cluster Operations</h3>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="activity-feed" id="overview-activity-feed">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fa-solid fa-shield-halved"></i>
+                                <h3>Ring Replication & Fault Tolerance Status</h3>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="health-summary-list">
+                                <div class="health-item">
+                                    <i class="fa-solid fa-circle-check text-success"></i>
+                                    <div>
+                                        <strong>Chunk A (on SN1) backed up on SN3</strong>
+                                        <small>Status: Synchronized (Version Vector in sync)</small>
+                                    </div>
+                                </div>
+                                <div class="health-item">
+                                    <i class="fa-solid fa-circle-check text-success"></i>
+                                    <div>
+                                        <strong>Chunk B (on SN2) backed up on SN1</strong>
+                                        <small>Status: Synchronized (Version Vector in sync)</small>
+                                    </div>
+                                </div>
+                                <div class="health-item">
+                                    <i class="fa-solid fa-circle-check text-success"></i>
+                                    <div>
+                                        <strong>Chunk C (on SN3) backed up on SN2</strong>
+                                        <small>Status: Synchronized (Version Vector in sync)</small>
+                                    </div>
+                                </div>
+                                <div class="health-item">
+                                    <i class="fa-solid fa-arrows-split-up-and-left text-accent"></i>
+                                    <div>
+                                        <strong>Automatic Failover Daemon Active</strong>
+                                        <small>Heartbeat timeout: 4.5s &bull; Promotion latency: &lt; 2.5ms</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== TAB 2: CLOUD DRIVE ==================== -->
+            <section class="tab-pane" id="tab-drive">
+                <div class="view-header">
+                    <div>
+                        <h2>Distributed Cloud Drive</h2>
+                        <p>Browse, upload, inspect, and manage files distributed across the storage node mesh.</p>
+                    </div>
+                    <div class="view-actions">
+                        <button class="btn btn-primary" onclick="MiniDFSApp.openUploadModal()">
+                            <i class="fa-solid fa-plus"></i> New File Upload
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Drive Controls Bar -->
+                <div class="drive-bar">
+                    <div class="search-box">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="drive-search-input" placeholder="Search files in namespace..." oninput="MiniDFSApp.filterFiles()">
+                    </div>
+                    <div class="drive-user-selector">
+                        <span>Logged in as:</span>
+                        <select id="drive-current-user" class="form-control-inline" onchange="MiniDFSApp.onUserChange()">
+                            <option value="alice">alice (Standard User)</option>
+                            <option value="bob">bob (Team Member)</option>
+                            <option value="admin">admin (Superuser)</option>
+                            <option value="guest">guest (Public Viewer)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Files Table -->
+                <div class="card">
+                    <div class="card-body table-responsive">
+                        <table class="data-table" id="drive-files-table">
+                            <thead>
+                                <tr>
+                                    <th>File Path</th>
+                                    <th>Owner</th>
+                                    <th>ACL Permissions</th>
+                                    <th>Size</th>
+                                    <th>Version</th>
+                                    <th>Primary & Replica Chunks</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="drive-files-body">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== TAB 3: ANALYTICS STUDIO ==================== -->
+            <section class="tab-pane" id="tab-analytics">
+                <div class="view-header">
+                    <div>
+                        <h2>Big Data Analytics Studio</h2>
+                        <p>Run distributed MapReduce analytics directly over storage node chunks exploiting data locality.</p>
+                    </div>
+                </div>
+
+                <div class="two-col-grid">
+                    <!-- Job Configuration -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fa-solid fa-sliders"></i>
+                                <h3>Analytics Job Configuration</h3>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="analytics-job-type">Analytics Algorithm:</label>
+                                <select id="analytics-job-type" class="form-control">
+                                    <option value="WordCount">Distributed Word Frequency Counter (WordCount)</option>
+                                    <option value="LogAnalysis">Distributed Security Log Severity Counter (INFO, WARN, ERROR, FATAL)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="analytics-custom-input">Distributed Input Dataset:</label>
+                                <textarea id="analytics-custom-input" class="form-control" rows="6">MiniDFS distributed cloud platform scales across multiple storage nodes with ring replication.
+MapReduce processes data partitions directly on Storage Node 1, Storage Node 2, and Storage Node 3.
+INFO: Data chunk A processed successfully on SN1.
+INFO: Secondary replica synchronization completed over replication network.
+WARN: Latency spike detected on node interconnect.
+ERROR: Simulated packet dropped during network partition test.
+INFO: Reducer aggregated final key counts across partitions.</textarea>
+                            </div>
+                            <button class="btn btn-primary" onclick="MiniDFSApp.runAnalyticsJob()">
+                                <i class="fa-solid fa-play"></i> Execute MapReduce Analytics Job
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Execution Results -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fa-solid fa-chart-simple"></i>
+                                <h3>Pipeline Execution & Results</h3>
+                            </div>
+                            <span class="badge-accent" id="analytics-job-id">Job: Idle</span>
+                        </div>
+                        <div class="card-body">
+                            <!-- Pipeline Stepper -->
+                            <div class="pipeline-stepper">
+                                <div class="pipe-step">
+                                    <span class="step-num">1</span>
+                                    <div class="step-info">
+                                        <strong>Map Phase</strong>
+                                        <small id="pipe-map-time">SN1, SN2, SN3 local</small>
+                                    </div>
+                                </div>
+                                <div class="pipe-arrow">&rarr;</div>
+                                <div class="pipe-step">
+                                    <span class="step-num">2</span>
+                                    <div class="step-info">
+                                        <strong>Shuffle & Sort</strong>
+                                        <small id="pipe-shuffle-time">Hash partition</small>
+                                    </div>
+                                </div>
+                                <div class="pipe-arrow">&rarr;</div>
+                                <div class="pipe-step">
+                                    <span class="step-num">3</span>
+                                    <div class="step-info">
+                                        <strong>Reduce</strong>
+                                        <small id="pipe-reduce-time">Aggregated</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h4 class="mt-4">Aggregated Dataset Output:</h4>
+                            <div class="table-responsive" style="max-height: 250px;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Key / Term</th>
+                                            <th>Frequency Count</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="analytics-results-tbody">
+                                        <tr><td colspan="2" class="text-muted">No analytics job executed yet. Click 'Execute' to run.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== TAB 4: HPC ACCELERATION ==================== -->
+            <section class="tab-pane" id="tab-hpc">
+                <div class="view-header">
+                    <div>
+                        <h2>High-Performance Compute (HPC) Accelerator</h2>
+                        <p>Distributed linear algebra and matrix operations powered by MPI Collective communication across node ranks.</p>
+                    </div>
+                </div>
+
+                <div class="two-col-grid">
+                    <!-- Matrix Parameters -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fa-solid fa-table-cells"></i>
+                                <h3>MPI Parallel Matrix Multiplier</h3>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p>Distributes matrix multiplication across MPI worker ranks: Matrix B is broadcast, Matrix A rows are scattered, workers calculate dot products in parallel, and result rows are gathered at Root.</p>
+                            
+                            <div class="form-group mt-3">
+                                <label for="hpc-matrix-dim">Matrix Dimensions (N x N):</label>
+                                <select id="hpc-matrix-dim" class="form-control">
+                                    <option value="4">4 x 4 (Instant Demo)</option>
+                                    <option value="8" selected>8 x 8 (Standard HPC Block)</option>
+                                    <option value="16">16 x 16 (High Load Benchmark)</option>
+                                    <option value="24">24 x 24 (Stress Compute)</option>
+                                </select>
+                            </div>
+
+                            <button class="btn btn-accent" onclick="MiniDFSApp.runHpcMatrixJob()">
+                                <i class="fa-solid fa-bolt"></i> Run Parallel Matrix Multiplication
+                            </button>
+
+                            <div class="hpc-metrics mt-4" id="hpc-benchmark-box" style="display:none;">
+                                <div class="bench-metric-grid">
+                                    <div class="bench-stat"><span>Parallel Time:</span> <strong id="hpc-par-time">- ms</strong></div>
+                                    <div class="bench-stat"><span>Sequential Time:</span> <strong id="hpc-seq-time">- ms</strong></div>
+                                    <div class="bench-stat"><span>Speedup Factor:</span> <strong id="hpc-speedup" class="text-accent">- x</strong></div>
+                                    <div class="bench-stat"><span>Verification:</span> <strong id="hpc-verified" class="text-success">PASS</strong></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Matrix Preview -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fa-solid fa-square-check"></i>
+                                <h3>Result Matrix C Preview (A &times; B)</h3>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <pre class="code-block" id="hpc-matrix-preview">[Select matrix dimensions and click 'Run Parallel Matrix Multiplication']</pre>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== TAB 5: STORAGE NODE MESH ==================== -->
+            <section class="tab-pane" id="tab-mesh">
+                <div class="view-header">
+                    <div>
+                        <h2>Storage Node Mesh & High Availability</h2>
+                        <p>Monitor real-time node health, inspect ring replica pairings, and test automated failover under simulated outages.</p>
+                    </div>
+                </div>
+
+                <!-- Visual Mesh Ring -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fa-solid fa-circle-nodes"></i>
+                            <h3>Live Ring Topology & Replica Map</h3>
+                        </div>
+                        <span class="tag btn-success"><i class="fa-solid fa-arrows-spin spin-slow"></i> Ring Replication Active</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="ring-grid">
+                            <!-- Node 1 -->
+                            <div class="node-card storage-card" id="mesh-card-sn1">
+                                <div class="node-header">
+                                    <span class="node-badge sn1-badge">STORAGE NODE 1</span>
+                                    <span class="hb-indicator" id="mesh-hb-sn1"><i class="fa-solid fa-heart-pulse"></i></span>
+                                </div>
+                                <div class="chunk-pair">
+                                    <div class="chunk-badge primary">
+                                        <small>PRIMARY</small>
+                                        <strong>Chunk A</strong>
+                                    </div>
+                                    <div class="chunk-badge replica">
+                                        <small>REPLICA</small>
+                                        <strong>Chunk B</strong>
+                                    </div>
+                                </div>
+                                <div class="node-metrics">
+                                    <div class="metric-row"><span>Status:</span> <strong id="mesh-sn1-status">HEALTHY</strong></div>
+                                    <div class="metric-row"><span>Load Score:</span> <strong id="mesh-sn1-load">12.5</strong></div>
+                                    <div class="metric-row"><span>Heartbeat Age:</span> <strong id="mesh-sn1-hb">1.0s</strong></div>
+                                </div>
+                                <div class="node-actions">
+                                    <button class="btn btn-sm btn-danger" onclick="MiniDFSApp.crashNode('SN1')">Simulate Crash</button>
+                                    <button class="btn btn-sm btn-success" onclick="MiniDFSApp.reviveNode('SN1')">Revive & Heal</button>
+                                </div>
+                            </div>
+
+                            <!-- Node 2 -->
+                            <div class="node-card storage-card" id="mesh-card-sn2">
+                                <div class="node-header">
+                                    <span class="node-badge sn2-badge">STORAGE NODE 2</span>
+                                    <span class="hb-indicator" id="mesh-hb-sn2"><i class="fa-solid fa-heart-pulse"></i></span>
+                                </div>
+                                <div class="chunk-pair">
+                                    <div class="chunk-badge primary">
+                                        <small>PRIMARY</small>
+                                        <strong>Chunk B</strong>
+                                    </div>
+                                    <div class="chunk-badge replica">
+                                        <small>REPLICA</small>
+                                        <strong>Chunk C</strong>
+                                    </div>
+                                </div>
+                                <div class="node-metrics">
+                                    <div class="metric-row"><span>Status:</span> <strong id="mesh-sn2-status">HEALTHY</strong></div>
+                                    <div class="metric-row"><span>Load Score:</span> <strong id="mesh-sn2-load">14.0</strong></div>
+                                    <div class="metric-row"><span>Heartbeat Age:</span> <strong id="mesh-sn2-hb">0.9s</strong></div>
+                                </div>
+                                <div class="node-actions">
+                                    <button class="btn btn-sm btn-danger" onclick="MiniDFSApp.crashNode('SN2')">Simulate Crash</button>
+                                    <button class="btn btn-sm btn-success" onclick="MiniDFSApp.reviveNode('SN2')">Revive & Heal</button>
+                                </div>
+                            </div>
+
+                            <!-- Node 3 -->
+                            <div class="node-card storage-card" id="mesh-card-sn3">
+                                <div class="node-header">
+                                    <span class="node-badge sn3-badge">STORAGE NODE 3</span>
+                                    <span class="hb-indicator" id="mesh-hb-sn3"><i class="fa-solid fa-heart-pulse"></i></span>
+                                </div>
+                                <div class="chunk-pair">
+                                    <div class="chunk-badge primary">
+                                        <small>PRIMARY</small>
+                                        <strong>Chunk C</strong>
+                                    </div>
+                                    <div class="chunk-badge replica">
+                                        <small>REPLICA</small>
+                                        <strong>Chunk A</strong>
+                                    </div>
+                                </div>
+                                <div class="node-metrics">
+                                    <div class="metric-row"><span>Status:</span> <strong id="mesh-sn3-status">HEALTHY</strong></div>
+                                    <div class="metric-row"><span>Load Score:</span> <strong id="mesh-sn3-load">11.8</strong></div>
+                                    <div class="metric-row"><span>Heartbeat Age:</span> <strong id="mesh-sn3-hb">1.2s</strong></div>
+                                </div>
+                                <div class="node-actions">
+                                    <button class="btn btn-sm btn-danger" onclick="MiniDFSApp.crashNode('SN3')">Simulate Crash</button>
+                                    <button class="btn btn-sm btn-success" onclick="MiniDFSApp.reviveNode('SN3')">Revive & Heal</button>
+                                </div>
+                            </div>
+
+                            <!-- Coordinator Failover Card -->
+                            <div class="node-card master-card">
+                                <div class="node-header">
+                                    <span class="node-badge master-badge">COORDINATOR</span>
+                                    <span class="badge-accent">Leader: Node 5</span>
+                                </div>
+                                <p class="text-secondary" style="font-size: 12px; margin: 8px 0 12px;">If Metadata Master fails, Bully or Ring elections elect a standby replica.</p>
+                                <div class="node-actions" style="flex-direction: column; gap: 6px;">
+                                    <button class="btn btn-sm btn-primary" onclick="MiniDFSApp.triggerBullyElection()">
+                                        <i class="fa-solid fa-crown"></i> Trigger Bully Election
+                                    </button>
+                                    <button class="btn btn-sm btn-secondary" onclick="MiniDFSApp.triggerRingElection()">
+                                        <i class="fa-solid fa-circle-notch"></i> Trigger Ring Election
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ring Data Protection Guarantee -->
+                        <div class="ring-flow-banner mt-4">
+                            <i class="fa-solid fa-shield-virus text-accent"></i>
+                            <span>Zero Data Loss Ring Design: If <strong>SN1</strong> crashes, <strong>SN3</strong> instantly promotes its replica of <strong>Chunk A</strong> to active primary with &lt; 2.5ms failover latency.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Primary vs Replica Audit Table -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fa-solid fa-clipboard-check"></i>
+                            <h3>Primary vs Replica Version Audit</h3>
+                        </div>
+                    </div>
+                    <div class="card-body table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Chunk ID</th>
+                                    <th>Primary Holder</th>
+                                    <th>Replica Holder</th>
+                                    <th>Primary Version</th>
+                                    <th>Replica Version</th>
+                                    <th>Replication Integrity</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mesh-audit-tbody">
+                                <!-- Dynamic -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== TAB 6: AUDIT & SYNCHRONIZATION ==================== -->
+            <section class="tab-pane" id="tab-audit">
+                <div class="view-header">
+                    <div>
+                        <h2>Enterprise Audit & Clock Synchronization</h2>
+                        <p>Causal event logs ordered by Lamport timestamps, physical hardware clock drift compensation, and multithreaded concurrency telemetry.</p>
+                    </div>
+                </div>
+
+                <div class="two-col-grid">
+                    <!-- Physical Clock Sync (Berkeley & Cristian) -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fa-solid fa-clock-rotate-left"></i>
+                                <h3>Berkeley & Cristian Clock Daemon</h3>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p>Storage nodes experience simulated hardware clock drift. The Berkeley Time Daemon polls physical times, filters outliers, and broadcasts clock adjustments.</p>
+                            
+                            <div class="node-clocks-grid mt-3" id="audit-berkeley-clocks">
+                                <!-- Populated dynamically -->
+                            </div>
+
+                            <div class="btn-group mt-3">
+                                <button class="btn btn-accent" onclick="MiniDFSApp.runBerkeleySync()">
+                                    <i class="fa-solid fa-arrows-spin"></i> Run Berkeley Sync Round
+                                </button>
+                                <button class="btn btn-secondary" onclick="MiniDFSApp.runCristianSync('SN1')">
+                                    <i class="fa-solid fa-crosshairs"></i> Cristian's RTT Sync (SN1)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Multithreaded Concurrency Stress Test -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fa-solid fa-microchip"></i>
+                                <h3>Worker ThreadPool & RWLock Concurrency</h3>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="rwlock-stats-row">
+                                <div class="lock-metric">
+                                    <span>Active Readers:</span>
+                                    <h4 id="audit-active-readers">0</h4>
+                                </div>
+                                <div class="lock-metric">
+                                    <span>Writer Active:</span>
+                                    <h4 id="audit-writer-active">False</h4>
+                                </div>
+                                <div class="lock-metric">
+                                    <span>Pool Workers:</span>
+                                    <h4>10 Workers</h4>
+                                </div>
+                            </div>
+
+                            <hr class="divider">
+
+                            <h4>Concurrent Traffic Load Benchmark</h4>
+                            <p class="text-secondary" style="font-size: 13px;">Fires concurrent client threads to evaluate cluster throughput (RPS) and latency.</p>
+                            <div class="form-row mt-2">
+                                <div class="form-group col">
+                                    <label>Concurrent Threads:</label>
+                                    <input type="number" id="audit-bench-clients" class="form-control" value="10" min="2" max="30">
+                                </div>
+                                <div class="form-group col">
+                                    <label>Requests / Thread:</label>
+                                    <input type="number" id="audit-bench-reqs" class="form-control" value="20" min="5" max="50">
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" onclick="MiniDFSApp.runAuditBenchmark()">
+                                <i class="fa-solid fa-bolt"></i> Run Traffic Benchmark
+                            </button>
+
+                            <div class="benchmark-results mt-3" id="audit-bench-results" style="display:none;">
+                                <div class="bench-metric-grid">
+                                    <div class="bench-stat"><span>Throughput:</span> <strong id="audit-throughput">- req/s</strong></div>
+                                    <div class="bench-stat"><span>Avg Latency:</span> <strong id="audit-lat">- ms</strong></div>
+                                    <div class="bench-stat"><span>Total Requests:</span> <strong id="audit-total-reqs">-</strong></div>
+                                    <div class="bench-stat"><span>Errors:</span> <strong id="audit-errors">0</strong></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chronological Audit Log (Lamport Ordered) -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fa-solid fa-timeline"></i>
+                            <h3>Lamport-Ordered Causal Event Stream</h3>
+                        </div>
+                        <span class="badge-accent">Logical Clock: <strong id="audit-lamport-val">#1</strong></span>
+                    </div>
+                    <div class="card-body">
+                        <div class="trace-log" id="audit-event-stream" style="max-height: 280px;">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== TAB 7: CONSENSUS SETTINGS ==================== -->
+            <section class="tab-pane" id="tab-settings">
+                <div class="view-header">
+                    <div>
+                        <h2>Consensus & Routing Configuration</h2>
+                        <p>Customize replication guarantees, quorum thresholds, and load-balancing placement policies.</p>
+                    </div>
+                </div>
+
+                <div class="two-col-grid">
+                    <!-- Consistency Settings -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fa-solid fa-arrows-split-up-and-left"></i>
+                                <h3>Replication Consistency Policy</h3>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="settings-consistency-mode">Active Consistency Guarantee:</label>
+                                <select id="settings-consistency-mode" class="form-control" onchange="MiniDFSApp.updateSettingsConsistency()">
+                                    <option value="QUORUM_STRONG">Quorum Strong Consistency (W=2, R=1, Synchronous Commit)</option>
+                                    <option value="EVENTUAL">Eventual Consistency (Asynchronous Ring Network Propagation)</option>
+                                    <option value="CAUSAL">Causal Consistency (Ordered by Lamport Timestamps)</option>
+                                </select>
+                            </div>
+                            <p class="text-secondary" style="font-size: 13px;">
+                                <strong>Quorum Strong:</strong> Writes are only acknowledged once committed to both Primary and Replica nodes.<br>
+                                <strong>Eventual:</strong> Primary writes acknowledge immediately; replica updates are dispatched asynchronously.<br>
+                                <strong>Causal:</strong> Enforces monotonic causality across updates.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Load Balancing Placement Settings -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fa-solid fa-scale-balanced"></i>
+                                <h3>Load Balancing Chunk Placement</h3>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="settings-lb-policy">Active Placement Policy:</label>
+                                <select id="settings-lb-policy" class="form-control" onchange="MiniDFSApp.updateSettingsLb()">
+                                    <option value="LEAST_LOADED">LEAST_LOADED (Dynamic composite score: storage + conns + CPU)</option>
+                                    <option value="WEIGHTED_CAPACITY">WEIGHTED_CAPACITY (Directs to node with max free space)</option>
+                                    <option value="ROUND_ROBIN">ROUND_ROBIN (Standard cyclic rotation)</option>
+                                </select>
+                            </div>
+                            <p class="text-secondary" style="font-size: 13px;">Master evaluates real-time node telemetry to balance incoming writes and route reads to whichever replica holder has lower latency.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- ==================== MODALS ==================== -->
+
+    <!-- Upload File Modal -->
+    <div class="modal-overlay" id="upload-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-cloud-arrow-up text-accent"></i> Upload New File to Cloud Drive</h3>
+                <button class="btn-close" onclick="MiniDFSApp.closeUploadModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="modal-upload-path">File Path (Namespace Destination):</label>
+                    <input type="text" id="modal-upload-path" class="form-control" value="/user/alice/project_specs.txt">
+                </div>
+                <div class="form-row">
+                    <div class="form-group col">
+                        <label for="modal-upload-user">Owner (User):</label>
+                        <input type="text" id="modal-upload-user" class="form-control" value="alice">
+                    </div>
+                    <div class="form-group col">
+                        <label for="modal-upload-perms">ACL Permissions:</label>
+                        <input type="text" id="modal-upload-perms" class="form-control" value="rwxr-xr--">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="modal-upload-content">File Content:</label>
+                    <textarea id="modal-upload-content" class="form-control" rows="4">MiniDFS distributed cloud platform deployed for high availability and resilient data storage.</textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="MiniDFSApp.closeUploadModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="MiniDFSApp.submitFileUpload()">
+                        <i class="fa-solid fa-upload"></i> Commit to Cluster
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Preview Modal -->
+    <div class="modal-overlay" id="preview-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="preview-modal-title"><i class="fa-solid fa-file-lines text-accent"></i> File Preview</h3>
+                <button class="btn-close" onclick="MiniDFSApp.closePreviewModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="file-meta-bar" id="preview-meta-bar"></div>
+                <pre class="code-block mt-3" id="preview-modal-content" style="max-height: 300px;"></pre>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="MiniDFSApp.closePreviewModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Architecture & 10 Concepts Academic Modal -->
+    <div class="modal-overlay" id="concepts-modal">
+        <div class="modal-card modal-lg">
+            <div class="modal-header">
+                <div class="modal-title-with-badge">
+                    <h3><i class="fa-solid fa-graduation-cap text-accent"></i> Distributed Systems Academic Mapping</h3>
+                    <span class="badge-accent">SPIT Mumbai &bull; Department of Computer Engineering</span>
+                </div>
+                <button class="btn-close" onclick="MiniDFSApp.closeConceptsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="text-secondary mb-3">All 10 curriculum concepts are fully functional and operate behind the scenes to power this startup cloud application:</p>
+                <div class="concepts-table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Distributed Concept</th>
+                                <th>Production Feature</th>
+                                <th>Underlying Implementation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>01</strong></td>
+                                <td><strong>Client-Server RPC</strong></td>
+                                <td>Cloud Drive API</td>
+                                <td>JSON-RPC 2.0 dispatching namespace queries, ACL permissions, and chunk locations.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>02</strong></td>
+                                <td><strong>Multithreading in DS</strong></td>
+                                <td>High-Concurrency Uploads</td>
+                                <td><code>MonitoredThreadPool</code> and fair <code>ReadWriteLock</code> (readers concurrent, writers exclusive).</td>
+                            </tr>
+                            <tr>
+                                <td><strong>03</strong></td>
+                                <td><strong>Clock Synchronization</strong></td>
+                                <td>Audit Feed & Time Daemon</td>
+                                <td><strong>Lamport Logical Clocks</strong> for causal ordering; <strong>Berkeley & Cristian</strong> physical clock sync.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>04</strong></td>
+                                <td><strong>Leader Elections</strong></td>
+                                <td>Coordinator High Availability</td>
+                                <td><strong>Garcia-Molina Bully</strong> and <strong>Token-Ring</strong> election algorithms for Master failover.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>05</strong></td>
+                                <td><strong>Consistency & Replication</strong></td>
+                                <td>Storage Node Mesh Ring</td>
+                                <td>Formal 3-Node Ring (SN1: A,B; SN2: B,C; SN3: C,A) with Quorum Strong, Eventual, and Causal models.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>06</strong></td>
+                                <td><strong>Load Balancing</strong></td>
+                                <td>Smart Chunk Placement</td>
+                                <td>Least-Loaded composite scoring ($\text{storage} + \text{conns} + \text{cpu}$) and read load balancing.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>07</strong></td>
+                                <td><strong>MapReduce Layer</strong></td>
+                                <td>Analytics Studio</td>
+                                <td>Distributed Map $\to$ Shuffle $\to$ Reduce over storage chunks exploiting data locality.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>08</strong></td>
+                                <td><strong>Fault Tolerance (Primary-Backup)</strong></td>
+                                <td>Zero Data Loss Failover</td>
+                                <td>Heartbeat monitor (4.5s timeout) with automated replica promotion and ring healing on node revival.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>09</strong></td>
+                                <td><strong>MPI Collective Primitives</strong></td>
+                                <td>Distributed Compute</td>
+                                <td><code>MPI_Bcast</code>, <code>MPI_Scatter</code>, <code>MPI_Gather</code>, and <code>MPI_Reduce</code> across process ranks.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>10</strong></td>
+                                <td><strong>Parallel Matrix Multiplication</strong></td>
+                                <td>HPC Accelerator</td>
+                                <td>Block row striping via MPI broadcast and scatter-gather with speedup and efficiency benchmarks.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-actions mt-3">
+                    <button class="btn btn-primary" onclick="MiniDFSApp.closeConceptsModal()">Understood</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="js/app.js"></script>
+</body>
+</html>

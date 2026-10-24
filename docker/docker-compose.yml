@@ -1,0 +1,13 @@
+services:
+  minidfs-master:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: minidfs-master
+    ports:
+      - "8080:8080"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ../data:/app/data
+    restart: unless-stopped

@@ -1,0 +1,10 @@
+# MiniDFS Dependencies
+# MiniDFS is engineered using Python's robust standard library (socket, threading,
+# concurrent.futures, http.server, json, time, queue, urllib), allowing it to run
+# out-of-the-box on any Python 3.8+ system with ZERO external package installation!
+
+# Optional packages for development / alternative deployments:
+# fastapi>=0.100.0
+# uvicorn>=0.22.0
+# requests>=2.31.0
+# pytest>=7.4.0
