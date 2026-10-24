@@ -452,6 +452,13 @@ const MiniDFSApp = {
                     id: Date.now()
                 })
             });
+            // Immediately remove from local state so table updates right away
+            delete this.allFiles[path];
+            if (this.systemState?.master?.files) {
+                delete this.systemState.master.files[path];
+                this.systemState.master.total_files = Object.keys(this.systemState.master.files).length;
+            }
+            this.filterFiles();
             this.fetchSystemOverview();
         } catch (err) {
             alert(`Delete failed: ${err.message}`);
@@ -475,9 +482,13 @@ const MiniDFSApp = {
         const btn = document.getElementById('btn-submit-upload');
         if (btn) btn.disabled = true;
 
-        const path = document.getElementById('modal-upload-path').value;
+        let path = (document.getElementById('modal-upload-path').value || '').trim();
         const user = document.getElementById('modal-upload-user').value;
         const perms = document.getElementById('modal-upload-perms').value;
+
+        // Ensure leading slash
+        if (path && !path.startsWith('/')) path = '/' + path;
+        if (!path) path = `/user/${user}/upload.dat`;
 
         let content = '';
         let contentType = 'text/plain';
@@ -505,10 +516,29 @@ const MiniDFSApp = {
                 })
             });
             const res = await resp.json();
+
+            if (res.status === 'SUCCESS' && res.file) {
+                // Immediately inject into local state — no waiting for polling
+                this.allFiles[res.file.path] = res.file;
+                if (this.systemState && this.systemState.master) {
+                    this.systemState.master.files = this.systemState.master.files || {};
+                    this.systemState.master.files[res.file.path] = res.file;
+                    this.systemState.master.total_files = Object.keys(this.systemState.master.files).length;
+                }
+            }
+
             this.closeUploadModal();
-            this.fetchSystemOverview();
+
+            // Switch to drive tab first (so renderDriveView has the DOM ready)
             this.switchTab('tab-drive');
-            alert(`File '${path}' successfully chunked and distributed across SN1, SN2, and SN3 in the ring!`);
+
+            // Render immediately with injected data
+            this.filterFiles();
+
+            // Then fetch fresh state from server in background
+            this.fetchSystemOverview();
+
+            alert(`✅ File '${path}' successfully chunked and distributed across SN1, SN2, and SN3!`);
         } catch (err) {
             alert(`Upload failed: ${err.message}`);
         } finally {

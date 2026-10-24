@@ -233,6 +233,21 @@ class MetadataServer:
                 "lamport_ts": ts
             }
 
+    def _resolve_path(self, path: str) -> Optional[str]:
+        """Resolves path regardless of leading/trailing slash variants"""
+        p = (path or "").strip().rstrip("/")
+        if not p:
+            return None
+        if p in self.files:
+            return p
+        p_slash = "/" + p if not p.startswith("/") else p
+        if p_slash in self.files:
+            return p_slash
+        p_noslash = p.lstrip("/")
+        if p_noslash in self.files:
+            return p_noslash
+        return None
+
     def rpc_create_file(self, path: str, user: str, content: Union[str, bytes], permissions: str = "rwxr-xr--", content_type: str = None) -> Dict[str, Any]:
         """
         RPC: Create a new file or upload an audio file.
@@ -240,10 +255,28 @@ class MetadataServer:
         """
         start_t = time.perf_counter()
         with self.rwlock.write_locked(caller=f"RPC-CreateFile-{user}"):
-            clean_path = path.rstrip("/")
-            filename = clean_path.split("/")[-1]
+            clean_path = (path or "").strip()
+            if not clean_path.startswith("/"):
+                clean_path = "/" + clean_path
+            clean_path = clean_path.rstrip("/") or "/"
+            filename = clean_path.split("/")[-1] if "/" in clean_path else clean_path
+            if not filename:
+                filename = "upload.dat"
+
+            # Register parent directory paths in namespace
+            parts = [p for p in clean_path.split("/") if p]
+            curr = ""
+            for p in parts[:-1]:
+                curr += "/" + p
+                self.directories.add(curr)
 
             # Detect content type & audio format
+            is_b64 = isinstance(content, str) and content.startswith("data:") and ";base64," in content
+            if isinstance(content, str) and not is_b64:
+                # Manual text payload fallback
+                if not content_type or content_type == "audio/mpeg" or content_type == "application/octet-stream":
+                    content_type = "text/plain"
+
             if content_type is None:
                 content_type, _ = mimetypes.guess_type(filename)
                 content_type = content_type or "application/octet-stream"
@@ -252,18 +285,18 @@ class MetadataServer:
 
             # Convert base64 data URLs if passed from frontend FileReader
             if isinstance(content, str):
-                if content.startswith("data:") and ";base64," in content:
-                    # Strip data URL header
+                if is_b64:
                     header_part, b64_part = content.split(";base64,", 1)
                     file_bytes = base64.b64decode(b64_part)
-                    if not content_type or content_type == "application/octet-stream":
-                        content_type = header_part.replace("data:", "")
+                    header_mime = header_part.replace("data:", "")
+                    if header_mime:
+                        content_type = header_mime
                         if content_type.startswith("audio/"):
                             is_audio = True
                 else:
                     file_bytes = content.encode('utf-8')
             else:
-                file_bytes = content
+                file_bytes = content or b""
 
             file_size = len(file_bytes)
             ts = self.lamport_clock.tick(f"RPC create_file {clean_path} ({file_size} bytes) by {user}")
@@ -285,7 +318,7 @@ class MetadataServer:
             self.files[clean_path] = file_meta
 
             elapsed = round((time.perf_counter() - start_t) * 1000, 3)
-            self._record_rpc("create_file", user, {"path": clean_path, "size": file_size, "is_audio": is_audio}, "CREATED", elapsed, ts)
+            self._record_rpc("create_file", user, {"path": clean_path, "size": file_size, "is_audio": is_audio}, f"CREATED ({file_size} B)", elapsed, ts)
 
             return {
                 "status": "SUCCESS",
@@ -301,9 +334,9 @@ class MetadataServer:
         start_t = time.perf_counter()
         with self.rwlock.read_locked(caller=f"RPC-ReadFile-{user}"):
             ts = self.lamport_clock.tick(f"RPC read_file {path} by {user}")
-            clean_path = path.rstrip("/")
-            if clean_path not in self.files:
-                return {"error": f"File '{clean_path}' not found"}
+            clean_path = self._resolve_path(path)
+            if not clean_path or clean_path not in self.files:
+                return {"error": f"File '{path}' not found"}
 
             file_meta = self.files[clean_path]
             perm_check = self.rpc_check_permissions(user, clean_path, "READ")
@@ -332,7 +365,6 @@ class MetadataServer:
                 try:
                     text_str = raw_data.decode('utf-8')
                 except UnicodeDecodeError:
-                    b64 = base64.b64encode(raw_data).decode('utf-8')
                     text_str = f"[Binary data: {len(raw_data)} bytes]"
 
                 self._record_rpc("read_file", user, {"path": clean_path}, f"READ {len(raw_data)} BYTES", elapsed, ts)
@@ -348,8 +380,8 @@ class MetadataServer:
     def get_file_raw_bytes(self, path: str) -> Optional[tuple[bytes, str, str]]:
         """Returns (raw_bytes, content_type, filename) for streaming/download"""
         with self.rwlock.read_locked(caller="Raw-Stream"):
-            clean_path = path.rstrip("/")
-            if clean_path not in self.files:
+            clean_path = self._resolve_path(path)
+            if not clean_path or clean_path not in self.files:
                 return None
             meta = self.files[clean_path]
             raw = self.ring_manager.reassemble_file(meta.chunks)
@@ -360,9 +392,9 @@ class MetadataServer:
         start_t = time.perf_counter()
         with self.rwlock.write_locked(caller=f"RPC-DeleteFile-{user}"):
             ts = self.lamport_clock.tick(f"RPC delete_file {path} by {user}")
-            clean_path = path.rstrip("/")
-            if clean_path not in self.files:
-                return {"error": f"File '{clean_path}' not found"}
+            clean_path = self._resolve_path(path)
+            if not clean_path or clean_path not in self.files:
+                return {"error": f"File '{path}' not found"}
 
             del self.files[clean_path]
             elapsed = round((time.perf_counter() - start_t) * 1000, 3)
@@ -385,8 +417,10 @@ class MetadataServer:
 
     def get_namespace_overview(self) -> Dict[str, Any]:
         with self.rwlock.read_locked(caller="Master-Overview"):
+            total_bytes = sum(f.size_bytes for f in self.files.values())
             return {
                 "total_files": len(self.files),
+                "total_bytes": total_bytes,
                 "directories": list(self.directories),
                 "files": {path: meta.to_dict() for path, meta in self.files.items()},
                 "recent_rpc_calls": list(self.rpc_call_history[-15:])

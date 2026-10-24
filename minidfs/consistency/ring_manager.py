@@ -215,8 +215,8 @@ class RingReplicationManager:
             p_node = info["primary_node"]
             r_node = info["replica_node"]
 
-            p_chunk = self.storage[p_node]["primary_chunks"].get(chunk_id) or self.storage[p_node]["primary"]
-            r_chunk = self.storage[r_node]["replica_chunks"].get(chunk_id) or self.storage[r_node]["replica"]
+            p_chunk = self.storage[p_node]["primary_chunks"].get(chunk_id)
+            r_chunk = self.storage[r_node]["replica_chunks"].get(chunk_id)
 
             # Quorum read: pick highest version
             chosen_node = r_node if (prefer_replica and r_chunk and p_chunk and r_chunk.version >= p_chunk.version) else p_node
@@ -256,11 +256,14 @@ class RingReplicationManager:
             file_bytes[part_size * 2 :]
         ]
 
+        # Clean filename for chunk IDs
+        safe_fn = filename.strip("/").replace(" ", "_")
+
         # Ring allocation
         allocations = [
-            (f"{filename}_part1", parts[0], "SN1", "SN3"),
-            (f"{filename}_part2", parts[1], "SN2", "SN1"),
-            (f"{filename}_part3", parts[2], "SN3", "SN2"),
+            (f"{safe_fn}_part1", parts[0], "SN1", "SN3"),
+            (f"{safe_fn}_part2", parts[1], "SN2", "SN1"),
+            (f"{safe_fn}_part3", parts[2], "SN3", "SN2"),
         ]
 
         results = []
@@ -286,33 +289,39 @@ class RingReplicationManager:
             for nid, config in self.topology.items():
                 p_chunk = self.storage[nid]["primary"].to_dict()
                 r_chunk = self.storage[nid]["replica"].to_dict()
+                p_chunks_dict = self.storage[nid]["primary_chunks"]
+                r_chunks_dict = self.storage[nid]["replica_chunks"]
                 nodes_status[nid] = {
                     "node_id": nid,
                     "primary_holding": p_chunk,
                     "replica_holding": r_chunk,
-                    "total_primary_chunks": len(self.storage[nid]["primary_chunks"]),
-                    "total_replica_chunks": len(self.storage[nid]["replica_chunks"]),
+                    "primary_chunk_ids": list(p_chunks_dict.keys()),
+                    "replica_chunk_ids": list(r_chunks_dict.keys()),
+                    "total_primary_chunks": len(p_chunks_dict),
+                    "total_replica_chunks": len(r_chunks_dict),
                     "expected_primary": config["primary"],
                     "expected_replica": config["replica"],
                     "replica_source": config["replica_source"]
                 }
 
-            # Consistency audit across core ring chunks
+            # Consistency audit across all registered chunks in the cluster
             audit = []
-            for cid in ["Chunk_A", "Chunk_B", "Chunk_C"]:
-                loc = self.chunk_locations.get(cid)
-                if loc:
-                    p = self.storage[loc["primary_node"]]["primary_chunks"].get(cid) or self.storage[loc["primary_node"]]["primary"]
-                    r = self.storage[loc["replica_node"]]["replica_chunks"].get(cid) or self.storage[loc["replica_node"]]["replica"]
-                    synced = (p and r and p.version == r.version and p.checksum == r.checksum)
-                    audit.append({
-                        "chunk_id": cid,
-                        "primary_node": loc["primary_node"],
-                        "replica_node": loc["replica_node"],
-                        "primary_version": p.version if p else 0,
-                        "replica_version": r.version if r else 0,
-                        "synchronized": synced
-                    })
+            for cid, loc in self.chunk_locations.items():
+                p_node = loc["primary_node"]
+                r_node = loc["replica_node"]
+                p = self.storage[p_node]["primary_chunks"].get(cid)
+                r = self.storage[r_node]["replica_chunks"].get(cid)
+                synced = bool(p and r and p.version == r.version and p.checksum == r.checksum)
+                sz = len(p.raw_bytes) if p else (len(r.raw_bytes) if r else 0)
+                audit.append({
+                    "chunk_id": cid,
+                    "primary_node": p_node,
+                    "replica_node": r_node,
+                    "primary_version": p.version if p else 0,
+                    "replica_version": r.version if r else 0,
+                    "size_bytes": sz,
+                    "synchronized": synced
+                })
 
             return {
                 "consistency_mode": self.consistency_mode,
